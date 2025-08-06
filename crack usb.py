@@ -3,6 +3,7 @@ import subprocess
 import time
 import psutil
 from datetime import datetime
+import sys
 
 # --- List available drives/partitions ---
 def list_storage_devices():
@@ -26,7 +27,7 @@ def select_drive(drives):
         return choice
     else:
         print("❌ Invalid drive/path")
-        exit(1)
+        sys.exit(1)
 
 # --- List connected Android devices via ADB ---
 def list_android_devices():
@@ -43,10 +44,24 @@ def list_android_devices():
 def pull_from_android(device_id, remote_path, local_path, log_file):
     try:
         os.makedirs(local_path, exist_ok=True)
+
+        # ตรวจสอบว่า device ยังเชื่อมอยู่
+        current_devices = list_android_devices()
+        if device_id not in current_devices:
+            log = f"[❌ ERROR] Device disconnected before pulling {remote_path}"
+            print(log)
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(log + '\n')
+            sys.exit(1)
+
+        # ทำการ pull
         subprocess.run(['adb', '-s', device_id, 'pull', remote_path, local_path], check=True)
         log = f"[✅ OK] Pulled {remote_path} → {local_path}"
+
     except subprocess.CalledProcessError as e:
         log = f"[❌ FAIL] Failed to pull {remote_path} → {local_path} | {e}"
+    except Exception as e:
+        log = f"[❌ ERROR] Unexpected error while pulling {remote_path} | {e}"
     print(log)
     with open(log_file, 'a', encoding='utf-8') as f:
         f.write(log + '\n')
