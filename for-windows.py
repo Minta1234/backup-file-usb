@@ -26,44 +26,43 @@ def check_adb():
         subprocess.check_output(["adb", "version"], stderr=subprocess.STDOUT)
         print("[✔] ADB is available.")
     except Exception:
-        tools_dir = "C:\\Tools"
+        # กำหนด path adb ที่ถูกต้องตามที่ระบุ
+        tools_dir = r"C:\Tools\platform-tools"
         adb_zip = os.path.join(os.path.dirname(__file__), "platform-tools-latest-windows.zip")
-        adb_dir = os.path.join(tools_dir, "platform-tools")
+        adb_dir = tools_dir
 
         if not os.path.exists(adb_zip):
-            print("❌ 'platform-tools-latest-windows.zip' not found. Please place it in the same directory as this script.")
+            print("❌ platform-tools-latest-windows.zip not found. Please place it in script directory.")
             sys.exit(1)
 
-        print("📁 Creating C:\\Tools directory if it does not exist...")
-        os.makedirs(tools_dir, exist_ok=True)
-
-        print("📦 Extracting ADB tools to C:\\Tools\\platform-tools...")
+        print(f"📦 Extracting platform-tools to {adb_dir} ...")
+        os.makedirs(adb_dir, exist_ok=True)
         with zipfile.ZipFile(adb_zip, 'r') as zip_ref:
             zip_ref.extractall(adb_dir)
 
         os.environ["PATH"] += os.pathsep + adb_dir
 
-        print("🔧 Adding ADB path to user's environment variables...")
+        print("🔧 Adding adb path to User environment variables (persistent)...")
         try:
             current_path = subprocess.check_output(
                 ['powershell', '-Command', '[Environment]::GetEnvironmentVariable("Path", "User")'],
                 encoding='utf-8'
             ).strip()
 
-            if adb_dir not in current_path:
+            if adb_dir.lower() not in current_path.lower():
                 new_path = current_path + ";" + adb_dir
                 subprocess.run(['setx', 'Path', new_path], check=True, shell=True)
-                print("[✔] ADB path successfully added to user PATH.")
+                print("[✔] Added adb to User PATH.")
             else:
-                print("[ℹ️] ADB path already exists in PATH.")
+                print("[ℹ️] adb path already exists in User PATH.")
         except Exception as e:
-            print(f"[❌] Failed to set PATH variable: {e}")
+            print(f"[❌] Failed to add adb path: {e}")
 
         print(f"[✔] ADB installed at: {adb_dir}")
-        print("ℹ️ Please restart the terminal or rerun the script.")
+        print("ℹ️ Please restart terminal or PC for changes to take effect.")
 
 def list_storage_devices():
-    print("📦 Listing available drives:")
+    print("📦 Connected drives or partitions:")
     drives = []
     for p in psutil.disk_partitions():
         drives.append(p.device)
@@ -71,7 +70,7 @@ def list_storage_devices():
     return drives
 
 def select_drive(drives):
-    choice = input("📁 Enter the target drive path to save backups (e.g., E:\\): ").strip()
+    choice = input("📁 Enter the path to save backup (e.g., E:\\): ").strip()
     if choice in drives or os.path.exists(choice):
         return choice
     else:
@@ -88,12 +87,13 @@ def list_android_devices():
         return []
 
 def is_device_connected(device_id):
-    return device_id in list_android_devices()
+    devices = list_android_devices()
+    return device_id in devices
 
 def pull_from_android(device_id, remote_path, local_path, log_file):
     try:
         if not is_device_connected(device_id):
-            raise RuntimeError("📴 Device is disconnected")
+            raise RuntimeError("📴 Device disconnected")
         os.makedirs(local_path, exist_ok=True)
         subprocess.run(['adb', '-s', device_id, 'pull', remote_path, local_path], check=True)
         log = f"[✅ OK] Pulled {remote_path} → {local_path}"
@@ -121,17 +121,17 @@ def pull_cookies(device_id, local_path, log_file):
         f.write(log + '\n')
 
 def wait_for_device():
-    print("🔍 Waiting for Android device (ensure USB debugging is enabled)...")
+    print("🔍 Waiting for Android device (enable USB debugging)...")
     android_devices = []
     while not android_devices:
         android_devices = list_android_devices()
         if not android_devices:
-            print("⌛ No device found yet, retrying...")
+            print("⌛ Still waiting for device...")
             time.sleep(3)
     return android_devices[0]
 
 if __name__ == "__main__":
-    print("📂 Initializing Android Backup System for Windows...\n")
+    print("📂 Preparing Android Backup System for Windows...\n")
 
     check_adb()
 
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     log_file = os.path.join(backup_root, "backup_log.txt")
 
     device_id = wait_for_device()
-    print(f"✅ Device connected: {device_id}")
+    print(f"✅ Found device: {device_id}")
 
     folders_to_pull = [
         "/sdcard/DCIM",
@@ -170,6 +170,6 @@ if __name__ == "__main__":
     cookies_path = os.path.join(backup_root, "Cookies")
     pull_cookies(device_id, cookies_path, log_file)
 
-    print("\n✅ Backup completed successfully.")
-    print(f"📁 Backup saved to: {backup_root}")
+    print("\n✅ Backup completed.")
+    print(f"📁 Files saved at: {backup_root}")
     print(f"📜 Log saved at: {log_file}")
