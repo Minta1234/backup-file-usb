@@ -47,6 +47,22 @@ def select_mount_point(mounts):
         print("❌ Invalid path.")
         sys.exit(1)
 
+def get_backup_folder_name(target_path):
+    while True:
+        folder_name = input("📂 Enter backup folder name (will be created inside the target path): ").strip()
+        if not folder_name:
+            print("❌ Folder name cannot be empty.")
+            continue
+        backup_path = os.path.join(target_path, folder_name)
+        if os.path.exists(backup_path):
+            overwrite = input(f"⚠️ Folder '{folder_name}' already exists. Overwrite? (y/n): ").strip().lower()
+            if overwrite == 'y':
+                return backup_path
+            else:
+                print("❎ Please enter a different folder name.")
+                continue
+        return backup_path
+
 def list_android_devices():
     try:
         output = subprocess.check_output(['adb', 'devices'], encoding='utf-8')
@@ -108,13 +124,12 @@ if __name__ == "__main__":
     mounts = list_mount_points()
     target_path = select_mount_point(mounts)
 
-    device_id = wait_for_device()
-    print(f"✅ Found device: {device_id}")
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_root = os.path.join(target_path, f"AndroidBackup_{device_id}_{timestamp}")
+    backup_root = get_backup_folder_name(target_path)
     os.makedirs(backup_root, exist_ok=True)
     log_file = os.path.join(backup_root, "backup_log.txt")
+
+    device_id = wait_for_device()
+    print(f"✅ Found device: {device_id}")
 
     folders_to_pull = [
         "/sdcard/DCIM",
