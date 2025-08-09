@@ -60,6 +60,7 @@ def check_adb():
 
         print(f"[✔] ADB installed at: {adb_dir}")
         print("ℹ️ Please restart terminal or PC for changes to take effect.")
+        sys.exit(0)
 
 def list_storage_devices():
     print("📦 Connected drives or partitions:")
@@ -77,6 +78,22 @@ def select_drive(drives):
         print("❌ Invalid path.")
         sys.exit(1)
 
+def get_backup_folder_name(target_path):
+    while True:
+        folder_name = input("📂 Enter backup folder name (will be created inside the target path): ").strip()
+        if not folder_name:
+            print("❌ Folder name cannot be empty.")
+            continue
+        backup_path = os.path.join(target_path, folder_name)
+        if os.path.exists(backup_path):
+            overwrite = input(f"⚠️ Folder '{folder_name}' already exists. Overwrite? (y/n): ").strip().lower()
+            if overwrite == 'y':
+                return backup_path
+            else:
+                print("❎ Please enter a different folder name.")
+                continue
+        return backup_path
+
 def list_android_devices():
     try:
         output = subprocess.check_output(['adb', 'devices'], encoding='utf-8')
@@ -89,6 +106,16 @@ def list_android_devices():
 def is_device_connected(device_id):
     devices = list_android_devices()
     return device_id in devices
+
+def wait_for_device():
+    print("🔍 Waiting for Android device (enable USB debugging)...")
+    android_devices = []
+    while not android_devices:
+        android_devices = list_android_devices()
+        if not android_devices:
+            print("⌛ Still waiting for device...")
+            time.sleep(3)
+    return android_devices[0]
 
 def pull_from_android(device_id, remote_path, local_path, log_file):
     try:
@@ -120,16 +147,6 @@ def pull_cookies(device_id, local_path, log_file):
     with open(log_file, 'a', encoding='utf-8') as f:
         f.write(log + '\n')
 
-def wait_for_device():
-    print("🔍 Waiting for Android device (enable USB debugging)...")
-    android_devices = []
-    while not android_devices:
-        android_devices = list_android_devices()
-        if not android_devices:
-            print("⌛ Still waiting for device...")
-            time.sleep(3)
-    return android_devices[0]
-
 if __name__ == "__main__":
     print("📂 Preparing Android Backup System for Windows...\n")
 
@@ -138,13 +155,12 @@ if __name__ == "__main__":
     drives = list_storage_devices()
     target_path = select_drive(drives)
 
-    device_id = wait_for_device()
-    print(f"✅ Found device: {device_id}")
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_root = os.path.join(target_path, f"AndroidBackup_{device_id}_{timestamp}")
+    backup_root = get_backup_folder_name(target_path)
     os.makedirs(backup_root, exist_ok=True)
     log_file = os.path.join(backup_root, "backup_log.txt")
+
+    device_id = wait_for_device()
+    print(f"✅ Found device: {device_id}")
 
     folders_to_pull = [
         "/sdcard/DCIM",
