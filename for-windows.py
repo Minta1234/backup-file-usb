@@ -138,13 +138,13 @@ if __name__ == "__main__":
     drives = list_storage_devices()
     target_path = select_drive(drives)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_root = os.path.join(target_path, f"AndroidBackup_{timestamp}")
-    os.makedirs(backup_root, exist_ok=True)
-    log_file = os.path.join(backup_root, "backup_log.txt")
-
     device_id = wait_for_device()
     print(f"✅ Found device: {device_id}")
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_root = os.path.join(target_path, f"AndroidBackup_{device_id}_{timestamp}")
+    os.makedirs(backup_root, exist_ok=True)
+    log_file = os.path.join(backup_root, "backup_log.txt")
 
     folders_to_pull = [
         "/sdcard/DCIM",
